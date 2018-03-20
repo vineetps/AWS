@@ -1,0 +1,128 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Creates Sub account",
+    "Resources": {
+        "SubAccountCreate": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Code": {
+                    "S3Bucket": {
+                        "Ref": "S3Bucket"
+                    },
+                    "S3Key": {
+                        "Fn::Sub": "${S3Key}.zip"
+                    }
+                },
+                "Description": "Creates Sub account",
+                "Tags": [
+                    {
+                        "Value": "Vineet Pal Singh",
+                        "Key": "lambda:createdBy"
+                    }
+                ],
+                "Environment": {
+                    "Variables": {
+                        "RoleName": {
+                            "Ref": "RoleName"
+                        },
+                        "Email": {
+                            "Ref": "Email"
+                        },
+                        "IAMBillingAccess": {
+                            "Ref": "IAMBillingAccess"
+                        },
+                        "AccountName": {
+                            "Ref": "AccountName"
+                        }
+                    }
+                },
+                "Handler": {
+                    "Fn::Sub": "${S3Key}.lambda_handler"
+                },
+                "Role": {
+                    "Fn::Sub": "arn:aws:iam::${RootAccountNo}:role/${LambdaRole}"
+                },
+                "Runtime": "python2.7"
+            }
+        },
+        "SubAccountCreateTopic": {
+            "Type": "AWS::SNS::Topic",
+            "Properties": {
+                "Subscription": [
+                    {
+                        "Endpoint": {
+                            "Fn::GetAtt": [
+                                "SubAccountCreate",
+                                "Arn"
+                            ]
+                        },
+                        "Protocol": "lambda"
+                    }
+                ]
+            },
+            "DependsOn": [
+                "SubAccountCreate"
+            ]
+        },
+        "LambdaInvokePermission": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+                "Action": "lambda:InvokeFunction",
+                "Principal": "sns.amazonaws.com",
+                "SourceArn": {
+                    "Ref": "SubAccountCreateTopic"
+                },
+                "FunctionName": {
+                    "Fn::GetAtt": [
+                        "SubAccountCreate",
+                        "Arn"
+                    ]
+                }
+            }
+        }
+    },
+    "Parameters": {
+        "S3Bucket": {
+            "Description": "S3 Bucket Name",
+            "Type": "String",
+            "Default": "vineet-root"
+        },
+        "S3Key": {
+            "Description": "S3 Key Name (.zip file name) Do not include .zip while writing the file name",
+            "Type": "String",
+            "Default": "child_account_create"
+        },
+        "RootAccountNo": {
+            "Description": "Root Account No",
+            "Type": "String"
+        },
+        "LambdaRole": {
+            "Description": "Assume role to perform Lambda Function",
+            "Type": "String"
+        },
+        "RoleName": {
+            "Description": "Name of assume role through which switching role will be possible(This role will have Administrator Access)",
+            "Type": "String",
+            "Default": "SwitchRoleAdmin"
+        },
+        "AccountName": {
+            "Description": "Name of your new child account",
+            "Type": "String"
+        },
+        "Email": {
+            "Description": "Email ID of the child account holder",
+            "Type": "String",
+            "AllowedPattern": "^[\\x20-\\x45]?[\\w-\\+]+(\\.[\\w]+)*@[\\w-]+(\\.[\\w]+)*(\\.[a-z]{2,})$",
+            "ConstraintDescription": "must be a valid email address"
+        },
+        "IAMBillingAccess": {
+            "Description": "Do you want give Billing access to Child Account?",
+            "Type": "String",
+            "AllowedValues": [
+                "ALLOW",
+                "DENY"
+            ],
+            "Default": "DENY"
+        }
+    }
+}
