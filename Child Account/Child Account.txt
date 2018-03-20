@@ -84,13 +84,11 @@
     "Parameters": {
         "S3Bucket": {
             "Description": "S3 Bucket Name",
-            "Type": "String",
-            "Default": "vineet-root"
+            "Type": "String"
         },
         "S3Key": {
             "Description": "S3 Key Name (.zip file name) Do not include .zip while writing the file name",
-            "Type": "String",
-            "Default": "child_account_create"
+            "Type": "String"
         },
         "RootAccountNo": {
             "Description": "Root Account No",
