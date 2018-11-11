@@ -1,0 +1,292 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "StateMachineName": {
+            "Type": "String",
+            "Default": "test"
+        }
+    },
+    "Resources": {
+        "Role": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com",
+                                    "lambda.amazonaws.com",
+                                    {
+                                        "Fn::Sub": "states.${AWS::Region}.amazonaws.com"
+                                    }
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path": "/"
+            }
+        },
+        "RolePolicies": {
+            "Type": "AWS::IAM::Policy",
+            "Properties": {
+                "PolicyName": "StepFnRole",
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "logs:CreateLogGroup",
+                                "logs:CreateLogStream",
+                                "logs:PutLogEvents"
+                            ],
+                            "Resource": "arn:aws:logs:*:*:*"
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "acm:ListCertificates",
+                                "acm:DescribeCertificate",
+                                "acm:DeleteCertificate",
+                                "iam:ListServerCertificates",
+                                "iam:GetServerCertificate",
+                                "iam:DeleteServerCertificate",
+                                "ec2:DescribeRegions"
+                            ],
+                            "Resource": "*"
+                        }
+                    ]
+                },
+                "Roles": [
+                    {
+                        "Ref": "Role"
+                    }
+                ]
+            }
+        },
+        "StateMachine": {
+            "DependsOn" : ["acm","iam","acmiam"],
+            "Type": "AWS::StepFunctions::StateMachine",
+            "Properties": {
+                "StateMachineName": {
+                    "Ref": "StateMachineName"
+                },
+                "DefinitionString": {
+                    "Fn::Sub": [
+                        "{\"Comment\": \"Deletion of Expired Certificates\",\"StartAt\": \"Type of Certs\",\"States\": {\"Type of Certs\":{\"Type\":\"Choice\",\"Choices\": [{\"Variable\": \"$.CertType\",\"StringEquals\": \"ACM\",\"Next\": \"ACM Certs\"},{\"Variable\": \"$.CertType\",\"StringEquals\": \"IAM\",\"Next\": \"IAM Certs\"}],\"Default\": \"ACM and IAM Certs\"},\"ACM Certs\": {\"Type\": \"Task\",\"Resource\":\"${acm}\",\"End\": true},\"IAM Certs\": {\"Type\": \"Task\",\"Resource\":\"${iam}\",\"End\": true},\"ACM and IAM Certs\": {\"Type\": \"Task\",\"Resource\":\"${acmiam}\",\"End\": true}}}",
+                        {
+                            "sg1": {
+                                "Fn::GetAtt": [
+                                    "acm",
+                                    "Arn"
+                                ]
+                            },
+                            "sg11": {
+                                "Fn::GetAtt": [
+                                    "iam",
+                                    "Arn"
+                                ]
+                            },
+                            "sg111": {
+                                "Fn::GetAtt": [
+                                    "acmiam",
+                                    "Arn"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "RoleArn": {
+                    "Fn::GetAtt": [
+                        "Role",
+                        "Arn"
+                    ]
+                }
+            }
+        },
+        "acm": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Handler": "index.lambda_handler",
+                "Role": {
+                    "Fn::GetAtt": [
+                        "Role",
+                        "Arn"
+                    ]
+                },
+                "Code": {
+                    "ZipFile": {
+                        "Fn::Join": [
+                            "\n",
+                            [
+                                "import boto3, datetime, json",
+                                "def lambda_handler(event, context):",
+                                "    regions = event['Region'].split(',')",
+                                "    acmCertArns = event['ACMCertificateArn'].split(',')",
+                                "    if ''.join(regions) == '':",
+                                "        regions = [boto3.session.Session().region_name]",
+                                "    elif ''.join(regions) == '*':",
+                                "        regions = []",
+                                "        ec2 = boto3.client('ec2')",
+                                "        response = ec2.describe_regions()",
+                                "        for list in response['Regions']:",
+                                "            regions.append(list['RegionName'])",
+                                "    else:",
+                                "        pass",
+                                "    print '\n\nACM Certificate:'",
+                                "    for region in regions:",
+                                "        region = region.strip()    ",
+                                "        client = boto3.client('acm', region_name=region)",
+                                "        print '\n----------------------\nRegion :',region,'\n'",
+                                "        if ''.join(acmCertArns) == '':",
+                                "            acmCertArns = []",
+                                "            response = client.list_certificates()",
+                                "            for certArn in response['CertificateSummaryList']:",
+                                "                acmCertArns.append(certArn['CertificateArn'])",
+                                "        else:",
+                                "            pass",
+                                "        try:",
+                                "            for certArn in acmCertArns:",
+                                "                DesCert = client.describe_certificate(CertificateArn=certArn)",
+                                "                acmCertDomain = DesCert['Certificate']['DomainName']",
+                                "                if DesCert['Certificate']['Status'] == 'EXPIRED' and DesCert['Certificate']['InUseBy'] == []:",
+                                "                    # uncomment below 3 lines to delete the ACM Certs",
+                                "                    # delCert = client.delete_certificate(CertificateArn=acmCertArn)",
+                                "                    print 'Expired :',acmCertDomain",
+                                "                else:",
+                                "                    print 'Active :',acmCertDomain",
+                                "        except:",
+                                "            print 'Invalid ACM Certificate ARN'",
+                                "        acmCertArns = []",
+                                "    return 'Expired : '+iamCertName,'Active : '+iamCertName"
+                            ]
+                        ]
+                    }
+                },
+                "Runtime": "python2.7",
+                "Timeout": 300
+            }
+        },
+        "iam": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Handler": "index.lambda_handler",
+                "Role": {
+                    "Fn::GetAtt": [
+                        "Role",
+                        "Arn"
+                    ]
+                },
+                "Code": {
+                    "ZipFile": {
+                        "Fn::Join": [
+                            "\n",
+                            [
+                                "import boto3, datetime, json",
+                                "def lambda_handler(event, context):",
+                                "    iamCertName = event['IAMCertificateName'].split(',')",
+                                "    print '\n\nIAM Certificate: \n'",
+                                "    client = boto3.client('iam')",
+                                "    print 'Region :',region,'\n\n'",
+                                "    if ''.join(iamCertName) == '':",
+                                "        response = client.list_server_certificates()",
+                                "        iamCerts = response['ServerCertificateMetadataList']",
+                                "    else:",
+                                "        response = client.get_server_certificate(ServerCertificateName=iamCertName)",
+                                "        iamCerts = response['ServerCertificate']['ServerCertificateMetadata']",
+                                "    try:",
+                                "        for iamCert in iamCerts:",
+                                "            iamCertName = iamCert['ServerCertificateName']",
+                                "            iamCertExpiration = iamCert['Expiration']",
+                                "            path = iamCert['Path']",
+                                "            if str(iamCertExpiration) < str(datetime.datetime.now()) and str(path) == '/':",
+                                "                # Uncomment below line to enable deletion of expired IAM Certificates",
+                                "                # response = client.delete_server_certificate(ServerCertificateName= iamCertName)",
+                                "                print 'Expired :',iamCertName",
+                                "            else:",
+                                "                print 'Active :',iamCertName",
+                                "    except:",
+                                "        print 'Invalid IAM Certificate Name'",
+                                "    return 'Expired : '+iamCertName,'Active : '+iamCertName"
+                            ]
+                        ]
+                    }
+                },
+                "Runtime": "python2.7",
+                "Timeout": 300
+            }
+        },
+        "acmiam": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Handler": "index.lambda_handler",
+                "Role": {
+                    "Fn::GetAtt": [
+                        "Role",
+                        "Arn"
+                    ]
+                },
+                "Code": {
+                    "ZipFile": {
+                        "Fn::Join": [
+                            "\n",
+                            [
+                                "import boto3, datetime, json",
+                                "def lambda_handler(event, context):",
+                                "    regions = event['Region'].split(',')",
+                                "    if ''.join(regions) == '':",
+                                "        regions = [boto3.session.Session().region_name]",
+                                "    elif ''.join(regions) == '*':",
+                                "        regions = []",
+                                "        ec2 = boto3.client('ec2')",
+                                "        response = ec2.describe_regions()",
+                                "        for list in response['Regions']:",
+                                "            regions.append(list['RegionName'])",
+                                "    else:",
+                                "        pass",
+                                "    for region in regions:",
+                                "        region = region.strip()",
+                                "        print '\n-------------------\nRegion :',region",
+                                "        client = boto3.client('acm', region_name=region)",
+                                "        response = client.list_certificates()",
+                                "        print 'ACM Certificate : \n'",
+                                "        for certArn in response['CertificateSummaryList']:",
+                                "            acmCertArn = certArn['CertificateArn']",
+                                "            acmCertDomain = certArn['DomainName']",
+                                "            DesCert = client.describe_certificate(CertificateArn=acmCertArn)",
+                                "            if DesCert['Certificate']['Status'] == 'EXPIRED' and DesCert['Certificate']['InUseBy'] == []:",
+                                "                # uncomment below 3 lines to delete the ACM Certs",
+                                "                # delCert = client.delete_certificate(CertificateArn=acmCertArn)",
+                                "                print 'Expired :',acmCertDomain",
+                                "            else:",
+                                "                print 'Active :',acmCertDomain",
+                                "    client = boto3.client('iam')",
+                                "    response = client.list_server_certificates()",
+                                "    print '====================\nIAM Certificate : \n'",
+                                "    for iamCert in response['ServerCertificateMetadataList']:",
+                                "        iamCertName = iamCert['ServerCertificateName']",
+                                "        iamCertExpiration = iamCert['Expiration']",
+                                "        path = iamCert['Path']",
+                                "        if str(iamCertExpiration) < str(datetime.datetime.now()) and str(path) == '/':",
+                                "            # Uncomment below 3 lines to enable deletion of expired IAM Certificates",
+                                "            # response = client.delete_server_certificate(ServerCertificateName= iamCertName)",
+                                "            print 'Expired :',iamCertName",
+                                "        else:",
+                                "            print 'Active :',iamCertName"
+                            ]
+                        ]
+                    }
+                },
+                "Runtime": "python2.7",
+                "Timeout": 300
+            }
+        }
+    }
+}
