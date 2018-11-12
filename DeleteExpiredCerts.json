@@ -195,7 +195,6 @@
                                 "    iamCertName = event['IAMCertificateName'].split(',')",
                                 "    print '\\n\\nIAM Certificate: \\n'",
                                 "    client = boto3.client('iam')",
-                                "    print 'Region :',region,'\\n\\n'",
                                 "    if ''.join(iamCertName) == '':",
                                 "        response = client.list_server_certificates()",
                                 "        iamCerts = response['ServerCertificateMetadataList']",
