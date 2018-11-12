@@ -58,7 +58,8 @@
                                 "iam:ListServerCertificates",
                                 "iam:GetServerCertificate",
                                 "iam:DeleteServerCertificate",
-                                "ec2:DescribeRegions"
+                                "ec2:DescribeRegions",
+                                "lambda:InvokeFunction"
                             ],
                             "Resource": "*"
                         }
