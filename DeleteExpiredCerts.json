@@ -165,8 +165,7 @@
                                 "                    print 'Active :',acmCertDomain",
                                 "        except:",
                                 "            print 'Invalid ACM Certificate ARN'",
-                                "        acmCertArns = []",
-                                "    return 'Expired : '+iamCertName,'Active : '+iamCertName"
+                                "        acmCertArns = []"
                             ]
                         ]
                     }
@@ -213,8 +212,7 @@
                                 "            else:",
                                 "                print 'Active :',iamCertName",
                                 "    except:",
-                                "        print 'Invalid IAM Certificate Name'",
-                                "    return 'Expired : '+iamCertName,'Active : '+iamCertName"
+                                "        print 'Invalid IAM Certificate Name'"
                             ]
                         ]
                     }
