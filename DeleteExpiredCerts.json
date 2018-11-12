@@ -82,19 +82,19 @@
                     "Fn::Sub": [
                         "{\"Comment\": \"Deletion of Expired Certificates\",\"StartAt\": \"Type of Certs\",\"States\": {\"Type of Certs\":{\"Type\":\"Choice\",\"Choices\": [{\"Variable\": \"$.CertType\",\"StringEquals\": \"ACM\",\"Next\": \"ACM Certs\"},{\"Variable\": \"$.CertType\",\"StringEquals\": \"IAM\",\"Next\": \"IAM Certs\"}],\"Default\": \"ACM and IAM Certs\"},\"ACM Certs\": {\"Type\": \"Task\",\"Resource\":\"${acm}\",\"End\": true},\"IAM Certs\": {\"Type\": \"Task\",\"Resource\":\"${iam}\",\"End\": true},\"ACM and IAM Certs\": {\"Type\": \"Task\",\"Resource\":\"${acmiam}\",\"End\": true}}}",
                         {
-                            "sg1": {
+                            "acm": {
                                 "Fn::GetAtt": [
                                     "acm",
                                     "Arn"
                                 ]
                             },
-                            "sg11": {
+                            "iam": {
                                 "Fn::GetAtt": [
                                     "iam",
                                     "Arn"
                                 ]
                             },
-                            "sg111": {
+                            "acmiam": {
                                 "Fn::GetAtt": [
                                     "acmiam",
                                     "Arn"
