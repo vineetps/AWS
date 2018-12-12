@@ -1,0 +1,53 @@
+{	
+	"AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "AWS Template for ECR",
+    "Parameters": {
+        "RepoName": {
+            "Type": "String",
+            "Description": "Repository Name"
+        }
+    },
+    "Resources": {
+        "MyRepository": {
+            "Type": "AWS::ECR::Repository",
+            "Properties": {
+                "RepositoryName": {
+                    "Ref": "RepoName"
+                },
+                "RepositoryPolicyText": {
+                    "Version": "2008-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "AllowPushPull",
+                            "Effect": "Allow",
+                            "Principal": {
+                                "AWS": [
+                                    "*"
+                                ]
+                            },
+                            "Action": [
+                                "ecr:GetDownloadUrlForLayer",
+                                "ecr:BatchGetImage",
+                                "ecr:BatchCheckLayerAvailability",
+                                "ecr:PutImage",
+                                "ecr:InitiateLayerUpload",
+                                "ecr:UploadLayerPart",
+                                "ecr:CompleteLayerUpload"
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "Outputs": {
+        "Arn": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "MyRepository",
+                    "Arn"
+                ]
+            }
+        }
+    }
+}
