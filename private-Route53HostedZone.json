@@ -1,0 +1,64 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters" : {
+        "Comment" : {
+            "Type" : "String",
+            "Default" : "Test Hosted Zone",
+            "Description" : "Comment to describe your hosted-zone",
+            "MinLength" : "1"
+        },
+        "Name" : {
+            "Type" : "String",
+            "Default" : "example.com",
+            "Description" : "Domain Name",
+            "MinLength" : "1"
+        },
+        "VPC1" : {
+            "Type" : "String",
+            "MinLength" : "1"
+        },
+        "VPC2" : {
+            "Type" : "String",
+            "MinLength" : "1"
+        },
+        "Region1" : {
+            "Type" : "String",
+            "Description" : "Region of VPC selected first",
+            "MinLength" : "1"
+        },
+        "Region2" : {
+            "Type" : "String",
+            "Description" : "Region of VPC selected second",
+            "MinLength" : "1"
+        }
+    },
+    "Resources": {
+        "DNS": {
+            "Type": "AWS::Route53::HostedZone",
+            "Properties": {
+                "HostedZoneConfig": {
+                    "Comment": {
+                        "Ref" : "Comment"
+                    }
+                },
+                "Name": {
+                    "Ref" : "Name"
+                },
+                "VPCs": [
+                    {
+                        "VPCId": { "Ref": "VPC1"},
+                        "VPCRegion": {
+                            "Ref" : "Region1"
+                        }
+                    },
+                    {
+                        "VPCId": {"Ref": "VPC2"},
+                        "VPCRegion": {
+                            "Ref" : "Region2"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
