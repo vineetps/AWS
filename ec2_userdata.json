@@ -1,0 +1,30 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Resources": {
+        "EC2I2TOX9": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "InstanceType": "",
+                "ImageId": "",
+                "SubnetId": "",
+                "KeyName": "",
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!\/bin\/bash -xe\n",
+                                "curl https:\/\/bootstrap.pypa.io\/get-pip.py -o get-pip.py\n",
+                                "sudo python get-pip.py\n",
+                                "echo 'export PATH=~\/.local\/bin:$PATH' >> ~\/.bash_profile\n",
+                                "source ~\/.bash_profile\n",
+                                "sudo pip install awscli\n",
+                                "\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}
