@@ -1,6 +1,6 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "Kinesis Stream with Splunk and S3",
+    "Description": "Stack for Firehose DeliveryStream S3 Destination.",
     "Parameters": {
         "DeliveryStreamName": {
             "Type": "String",
@@ -48,7 +48,7 @@
                 "KinesisStreamSourceConfiguration": {
                     "KinesisStreamARN": {
                         "Fn::GetAtt": [
-                            "KinesisStream",
+                            "DataStream",
                             "Arn"
                         ]
                     },
@@ -126,10 +126,10 @@
                 }
             }
         },
-        "KinesisStream": {
+        "DataStream": {
             "Type": "AWS::Kinesis::Stream",
             "Properties": {
-                "Name": "KinesisStream",
+                "Name": "KinesisDataStream",
                 "RetentionPeriodHours": 168,
                 "ShardCount": {
                     "Ref" : "KinesisStreamShardCount"
@@ -188,6 +188,26 @@
                         "Ref": "deliveryRole"
                     }
                 ]
+            }
+        }
+    },
+    "Outputs" : {
+        "DeliveryStreamARN" : {
+            "Description" : "ARN of Kinesis Delivery Stream",
+            "Value" : {
+                "Fn::GetAtt" : ["deliverystream","Arn"]
+            }
+        },
+        "BucketARN" : {
+            "Description" : "Name of bucket",
+            "Value" : {
+                "Fn::GetAtt" : ["s3bucket","Arn"]
+            }
+        },
+        "DataStreamArn" : {
+            "Description" : "ARN of Kinesis Data Stream",
+            "Value" : {
+                "Fn::GetAtt" : ["DataStream","Arn"]
             }
         }
     }
