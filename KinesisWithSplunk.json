@@ -136,6 +136,19 @@
                 }
             }
         },
+        "DestinationWithName" : {
+            "Type" : "AWS::Logs::Destination",
+            "Properties" : {
+              "DestinationName": "Destination",
+              "RoleArn": {
+                  "Ref" : "deliveryRole"
+              },
+              "TargetArn": {
+                  "Ref" : "DataStream"
+              },
+              "DestinationPolicy": {"Fn::Sub" : "{\"Version\" : \"2012-10-17\",\"Statement\" : [{\"Effect\" : \"Allow\", \"Principal\" : \"*\",\"Action\" : \"logs:PutSubscriptionFilter\", \"Resource\" : \"arn:aws:logs:${AWS::Region}:${AWS::AccountId}:destination:Destination\"}]}"}
+            }
+        },          
         "deliveryRole": {
             "Type": "AWS::IAM::Role",
             "Properties": {
@@ -171,6 +184,7 @@
                         {
                             "Effect": "Allow",
                             "Action": [
+                                "Logs:*",
                                 "kinesis:*",
                                 "s3:AbortMultipartUpload",
                                 "s3:GetBucketLocation",
@@ -208,6 +222,12 @@
             "Description" : "ARN of Kinesis Data Stream",
             "Value" : {
                 "Fn::GetAtt" : ["DataStream","Arn"]
+            }
+        },
+        "Destination" : {
+            "Description" : "ARN of Logs Destination",
+            "Value" : {
+                "Fn::GetAtt" : ["Destination","Arn"]
             }
         }
     }
