@@ -1,0 +1,165 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "AccessControl": {
+            "Type": "String",
+            "Description": "A canned access control list (ACL) that grants predefined permissions to the bucket.",
+            "AllowedValues": [
+                "AuthenticateRead",
+                "AwsExecRead",
+                "BucketOwnerRead",
+                "BucketOwnerFullControl",
+                "PublicRead",
+                "PublicReadWrite",
+                "LogDeliveryWrite",
+                "Private"
+            ],
+            "Default": "Private"
+        },
+        "BucketName": {
+            "Type": "String",
+            "AllowedPattern": "[a-z0-9.-]*",
+            "Description": "Must be lowercase, dashes, no spaces."
+        },
+        "KMSARN": {
+            "Type": "String",
+            "Description": "ARN of KMS Key for server side encryption",
+            "MinLength": "1",
+            "ConstraintDescription": "KMSARN must not be empty."
+        },
+        "PrincipalRoleName": {
+            "Type": "String"
+        }
+    },
+    "Conditions": {
+        "PrincipalCond": {
+            "Fn::Equals": [
+                {
+                    "Ref": "PrincipalRoleName"
+                },
+                ""
+            ]
+        }
+    },
+    "Metadata": {
+        "AWS::CloudFormation::Interface": {
+            "ParameterGroups": [
+                {
+                    "Label": {
+                        "default": "Bucket Details"
+                    },
+                    "Parameters": [
+                        "BucketName"
+                    ]
+                },
+                {
+                    "Label": {
+                        "default": "Access/Policy Details"
+                    },
+                    "Parameters": [
+                        "AccessControl",
+                        "KMSARN"
+                    ]
+                },
+                {}
+            ],
+            "ParameterLabels": {
+                "BucketName": {
+                    "default": "Bucket Name"
+                },
+                "AccessControl": {
+                    "default": "Access Permission"
+                },
+                "KMSARN": {
+                    "default": "ARN of KMS Key"
+                }
+            }
+        }
+    },
+    "Resources": {
+        "S3Bucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+                "BucketEncryption": {
+                    "ServerSideEncryptionConfiguration": [
+                        {
+                            "ServerSideEncryptionByDefault" : {
+                          "KMSMasterKeyID" : {
+                              "Ref" : "KMSARN"
+                          },
+                          "SSEAlgorithm" : "aws:kms"
+                        }
+                        }
+                    ]
+                },
+                "AccessControl": {
+                    "Ref": "AccessControl"
+                },
+                "BucketName": {
+                    "Ref": "BucketName"
+                }
+            }
+        },
+        "BucketPolicy": {
+            "Type": "AWS::S3::BucketPolicy",
+            "Properties": {
+                "Bucket": {
+                    "Ref": "S3Bucket"
+                },
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "DenyUnEncryptedObjectUploads",
+                            "Action": [
+                                "s3:PutObject"
+                            ],
+                            "Effect": "Deny",
+                            "Resource": {
+                                "Fn::Join": [
+                                    "",
+                                    [
+                                        "arn:aws:s3:::",
+                                        {
+                                            "Ref": "S3Bucket"
+                                        },
+                                        "/*"
+                                    ]
+                                ]
+                            },
+                            "Principal": "*",
+                            "Condition": {
+                                "Fn::If": [
+                                    "PrincipalCond",
+                                    {
+                                        "Ref": "AWS::NoValue"
+                                    },
+                                    {
+                                        "StringNotLike": {
+                                            "aws:userId": [{
+                                                "Fn::Join": [
+                                                        "",
+                                                        [
+                                                            "arn:aws:iam::",
+                                                            {
+                                                                "Ref": "AWS::AccountId"
+                                                            },
+                                                            ":role/",
+                                                            {
+                                                                "Ref": "PrincipalRoleName"
+                                                            }
+                                                        ]
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
